@@ -39,7 +39,8 @@ bool FileExists(const std::string& name)
 
 int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
 {
-	const std::string dllRelativePath = R"(..\x64\Debug\HorizonZeroDawnInternal.dll)";
+	const std::string dllRelativePath = "HorizonZeroDawnInternal.dll";
+
 	if (!FileExists(dllRelativePath))
 	{
 		MessageBox(NULL, std::string(dllRelativePath + " not found!\n\nPress ok to exit.").c_str(), "Error", MB_OK);
