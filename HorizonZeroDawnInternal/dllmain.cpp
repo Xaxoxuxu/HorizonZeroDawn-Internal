@@ -15,20 +15,32 @@ DWORD CleanupAndExit(const HMODULE hModule, const int exitCode, const ConsoleHel
 
 uintptr_t FindDmaAddy(uintptr_t ptr, const std::vector<unsigned int>& offsets)
 {
-	uintptr_t addr = ptr;
+	uintptr_t address = ptr;
 	for (const unsigned int offset : offsets)
 	{
-		addr = *reinterpret_cast<uintptr_t*>(addr);
-		addr += offset;
+		const auto temp = reinterpret_cast<uintptr_t*>(address);
+		if (!*temp)
+		{
+#if _DEBUG
+			std::cerr << "[FindDmaAddy] nullptr at pointer '" << temp << "' at offset '" << offset << "'\n";
+#endif
+			return NULL;
+		}
+
+		address = *temp;
+		address += offset;
 	}
-	return addr;
+	return address;
 }
 
 void ShowMenu()
 {
+	const std::string hpToggle{ Settings::bFreezeHealth ? "ON" : "OFF" };
+	const std::string crazyArrowsToggle{ Settings::bCrazyArrows ? "ON" : "OFF" };
+
 	std::cout << "*******************************\n";
-	std::cout << " NUM1 - Immortal. [" << (Settings::bFreezeHealth ? "ON" : "OFF") << "]\n";
-	std::cout << " NUM2 - Crazy arrows. [" << (Settings::bCrazyArrows ? "ON" : "OFF") << "]\n";
+	std::cout << " NUM1 - Immortal. [" << hpToggle << "]\n";
+	std::cout << " NUM2 - Crazy arrows. [" << crazyArrowsToggle << "]\n";
 	std::cout << " DEL - Exit.\n";
 	std::cout << "*******************************\n\n";
 }
@@ -57,10 +69,23 @@ void MainLoop(const ConsoleHelper& console)
 	{
 		console.ClearScreen();
 		ShowMenu();
-
 		if (GetAsyncKeyState(VK_DELETE) & 1)
 		{
 			break;
+		}
+
+		const auto localPlayerPtr = reinterpret_cast<uintptr_t*>(FindDmaAddy(moduleBase + 0x0711C0B8, { 0x48 , 0x20 ,0x0, 0x1D0 }));
+		if (!localPlayerPtr)
+		{
+			std::cerr << "LocalPlayer is NULL, are you in game?\nRetrying...\n";
+			continue;
+		}
+
+		const auto me = reinterpret_cast<Player*>(*localPlayerPtr);
+		if (!me)
+		{
+			std::cerr << "Player pointer is NULL, are you in game?\nRetrying...\n";
+			continue;
 		}
 
 		if (GetAsyncKeyState(VK_NUMPAD1) & 1)
@@ -71,20 +96,6 @@ void MainLoop(const ConsoleHelper& console)
 		if (GetAsyncKeyState(VK_NUMPAD2) & 1)
 		{
 			Settings::bCrazyArrows = !Settings::bCrazyArrows;
-		}
-
-		const auto localPlayerPtr = reinterpret_cast<uintptr_t*>(FindDmaAddy(moduleBase + 0x0711C0B8, { 0x48 , 0x20 ,0x0, 0x1D0 }));
-		if (!localPlayerPtr)
-		{
-			std::cout << "LocalPlayer is NULL, retrying...\n";
-			continue;
-		}
-
-		const auto me = reinterpret_cast<Player*>(*localPlayerPtr);
-		if (!me)
-		{
-			std::cout << "Player pointer is NULL, retrying...\n";
-			continue;
 		}
 
 #if _DEBUG
