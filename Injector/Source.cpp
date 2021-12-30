@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <fstream>
+#include <filesystem>
 
 DWORD GetProcId(const std::string& procName)
 {
@@ -38,12 +39,14 @@ bool FileExists(const std::string& name)
 
 int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
 {
-	const std::string dllPath = R"(E:\repos\HorizonZeroDawnInternal\x64\Debug\HorizonZeroDawnInternal.dll)";
-	if (!FileExists(dllPath))
+	const std::string dllRelativePath = R"(..\x64\Debug\HorizonZeroDawnInternal.dll)";
+	if (!FileExists(dllRelativePath))
 	{
-		MessageBox(NULL, std::string(dllPath + " not found!\n\nPress ok to exit.").c_str(), "Error", MB_OK);
+		MessageBox(NULL, std::string(dllRelativePath + " not found!\n\nPress ok to exit.").c_str(), "Error", MB_OK);
 		return EXIT_FAILURE;
 	}
+
+	const std::string dllAbsolutePath = std::filesystem::absolute(dllRelativePath).string();
 
 	const std::string procName = "HorizonZeroDawn.exe";
 	const DWORD procId = GetProcId(procName);
@@ -67,7 +70,7 @@ int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmd
 		return EXIT_FAILURE;
 	}
 
-	WriteProcessMemory(hProc, loc, dllPath.c_str(), strlen(dllPath.c_str()) + 1, 0);
+	WriteProcessMemory(hProc, loc, dllAbsolutePath.c_str(), dllAbsolutePath.length() + 1, 0);
 
 	const HANDLE hThread = CreateRemoteThread(hProc, 0, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(LoadLibraryA), loc, 0, 0);
 	if (!hThread)
@@ -78,6 +81,6 @@ int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmd
 
 	CloseHandle(hThread);
 	CloseHandle(hProc);
-	
+
 	return 0;
 }
