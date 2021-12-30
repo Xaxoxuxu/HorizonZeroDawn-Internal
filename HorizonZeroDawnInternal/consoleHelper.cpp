@@ -1,6 +1,25 @@
 #include "pch.h"
 #include "consoleHelper.hpp"
 
+void ConsoleHelper::ClearScreen() const
+{
+	constexpr COORD homeCoords = { 0, 0 };
+	static const std::string fillerString{ std::string(500, ' ') };
+
+	SetConsoleCursorPosition(m_hStdOut, homeCoords);
+	std::cout << fillerString;
+	SetConsoleCursorPosition(m_hStdOut, homeCoords);
+}
+
+void ConsoleHelper::ShowConsoleCursor(bool showFlag) const
+{
+	CONSOLE_CURSOR_INFO cursorInfo;
+
+	GetConsoleCursorInfo(m_hStdOut, &cursorInfo);
+	cursorInfo.bVisible = showFlag;
+	SetConsoleCursorInfo(m_hStdOut, &cursorInfo);
+}
+
 bool ConsoleHelper::InitConsole()
 {
 	if (AllocConsole() == 0)
@@ -26,6 +45,11 @@ bool ConsoleHelper::InitConsole()
 	{
 		return false;
 	}
+	
+	if ((m_hStdOut = GetStdHandle(STD_OUTPUT_HANDLE)) == INVALID_HANDLE_VALUE)
+	{
+		return false;
+	}
 
 	return true;
 }
@@ -38,6 +62,6 @@ void ConsoleHelper::DestroyConsole() const
 	FreeConsole();
 }
 
-ConsoleHelper::ConsoleHelper() : m_fInStream(nullptr), m_fOutStream(nullptr), m_fErrStream(nullptr)
+ConsoleHelper::ConsoleHelper() : m_fInStream(nullptr), m_fOutStream(nullptr), m_fErrStream(nullptr), m_hStdOut(nullptr)
 {
 }

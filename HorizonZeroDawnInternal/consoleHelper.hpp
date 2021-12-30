@@ -6,7 +6,6 @@ class ConsoleHelper
 {
 public:
 	ConsoleHelper();
-	~ConsoleHelper() = default;
 
 	/// <summary>
 	/// <para>Initialize console.</para>
@@ -15,8 +14,10 @@ public:
 	/// </summary>
 	/// <returns>true on success, false on failure</returns>
 	bool InitConsole();
-
 	void DestroyConsole() const;
+	void ClearScreen() const;
+	void ShowConsoleCursor(bool showFlag) const;
 private:
 	FILE* m_fInStream, * m_fOutStream, * m_fErrStream;
+	HANDLE m_hStdOut;
 };

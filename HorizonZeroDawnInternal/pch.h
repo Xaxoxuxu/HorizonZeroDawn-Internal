@@ -10,4 +10,7 @@
 #include "framework.h"
 #include <iostream>
 #include <cstdlib>
+#include <vector>
+#include <atomic>
+#include "settings.hpp"
 #include "consoleHelper.hpp"

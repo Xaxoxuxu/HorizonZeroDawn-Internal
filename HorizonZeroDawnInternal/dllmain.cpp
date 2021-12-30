@@ -2,18 +2,119 @@
 #include <Windows.h>
 #include <iostream>
 #include <cstdlib>
+#include <vector>
+#include "player.hpp"
 #include "consoleHelper.hpp"
+#include "settings.hpp"
 
-DWORD cleanupAndExit(const HMODULE hModule, const int exitCode, const ConsoleHelper ch)
+DWORD CleanupAndExit(const HMODULE hModule, const int exitCode, const ConsoleHelper ch)
 {
 	ch.DestroyConsole();
 	FreeLibraryAndExitThread(hModule, exitCode);
 }
 
-void mainLoop()
+uintptr_t FindDmaAddy(uintptr_t ptr, const std::vector<unsigned int>& offsets)
 {
+	uintptr_t addr = ptr;
+	for (const unsigned int offset : offsets)
+	{
+		addr = *reinterpret_cast<uintptr_t*>(addr);
+		addr += offset;
+	}
+	return addr;
+}
+
+void ShowMenu()
+{
+	std::cout << "*******************************\n";
+	std::cout << " NUM1 - Immortal. [" << (Settings::bFreezeHealth ? "ON" : "OFF") << "]\n";
+	std::cout << " NUM2 - Crazy arrows. [" << (Settings::bCrazyArrows ? "ON" : "OFF") << "]\n";
+	std::cout << " DEL - Exit.\n";
+	std::cout << "*******************************\n\n";
+}
+
+void Nop(BYTE* dst, unsigned int size)
+{
+	DWORD oldprotect;
+	VirtualProtect(dst, size, PAGE_EXECUTE_READWRITE, &oldprotect);
+	memset(dst, 0x90, size);
+	VirtualProtect(dst, size, oldprotect, &oldprotect);
+}
+
+void Patch(BYTE* dst, const BYTE* src, unsigned int size)
+{
+	DWORD oldprotect;
+	VirtualProtect(dst, size, PAGE_EXECUTE_READWRITE, &oldprotect);
+	memcpy(dst, src, size);
+	VirtualProtect(dst, size, oldprotect, &oldprotect);
+}
+
+void MainLoop(const ConsoleHelper& console)
+{
+	const auto moduleBase = reinterpret_cast<uintptr_t>(GetModuleHandle(NULL));
+
 	while (true)
 	{
+		console.ClearScreen();
+		ShowMenu();
+
+		if (GetAsyncKeyState(VK_DELETE) & 1)
+		{
+			break;
+		}
+
+		if (GetAsyncKeyState(VK_NUMPAD1) & 1)
+		{
+			Settings::bFreezeHealth = !Settings::bFreezeHealth;
+		}
+
+		if (GetAsyncKeyState(VK_NUMPAD2) & 1)
+		{
+			Settings::bCrazyArrows = !Settings::bCrazyArrows;
+		}
+
+		const auto localPlayerPtr = reinterpret_cast<uintptr_t*>(FindDmaAddy(moduleBase + 0x0711C0B8, { 0x48 , 0x20 ,0x0, 0x1D0 }));
+		if (!localPlayerPtr)
+		{
+			std::cout << "LocalPlayer is NULL, retrying...\n";
+			continue;
+		}
+
+		const auto me = reinterpret_cast<Player*>(*localPlayerPtr);
+		if (!me)
+		{
+			std::cout << "Player pointer is NULL, retrying...\n";
+			continue;
+		}
+
+#if _DEBUG
+		std::cout << "================== DEBUG ==================" << "\n";
+		std::cout << "Module base: 0x" << std::hex << std::uppercase << moduleBase << "\n";
+		std::cout << "LocalPlayerPtr: 0x" << std::hex << std::uppercase << localPlayerPtr << "\n";
+		std::cout << "LocalPlayer: 0x" << std::hex << std::uppercase << *localPlayerPtr << "\n";
+		std::cout << "mePtr: 0x" << std::hex << std::uppercase << me << "\n";
+		std::cout << "me: 0x" << std::hex << std::uppercase << *reinterpret_cast<uintptr_t*>(me) << "\n";
+		std::cout << "Crazy Arrows bytes start: 0x" << reinterpret_cast<uintptr_t*>(moduleBase + 0xFE1D20) << "\n";
+		std::cout << "===========================================" << "\n";
+#endif
+
+		std::cout << "Health: " << me->health << "\n";
+		std::cout << "Max Health: " << me->maxHealth << "\n";
+
+		if (Settings::bFreezeHealth)
+		{
+			me->health = me->maxHealth;
+		}
+
+		if (Settings::bCrazyArrows)
+		{
+			Nop(reinterpret_cast<BYTE*>(moduleBase) + 0xFE1D20, 3);
+		}
+		else
+		{
+			Patch(reinterpret_cast<BYTE*>(moduleBase) + 0xFE1D20, (BYTE*)"\x89\x41\x58", 3);
+		}
+
 		Sleep(10);
 	}
 }
@@ -25,14 +126,14 @@ DWORD WINAPI MainThread(const HMODULE hModule)
 	if (!ch.InitConsole())
 	{
 		// TODO: print this error in some way, probably inside the InitConsole() function as well, or msgbox?
-		return cleanupAndExit(hModule, EXIT_FAILURE, ch);
+		return CleanupAndExit(hModule, EXIT_FAILURE, ch);
 	}
 
-	std::cout << "Successfully attached!" << std::endl;
-	Sleep(2000);
-	//mainLoop();
+	ch.ShowConsoleCursor(false);
 
-	return cleanupAndExit(hModule, EXIT_SUCCESS, ch);
+	MainLoop(ch);
+
+	return CleanupAndExit(hModule, EXIT_SUCCESS, ch);
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
@@ -42,7 +143,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 		// Unnecessary thread calls disabled 
 		DisableThreadLibraryCalls(hModule);
 
-		const HANDLE threadHandle = CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(MainThread), hModule, 0, nullptr);
+		const HANDLE threadHandle{ CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(MainThread), hModule, 0, nullptr) };
 		if (threadHandle != NULL)
 		{
 			CloseHandle(threadHandle);
