@@ -126,7 +126,7 @@ void MainLoop(const ConsoleHelper& console)
 			Patch(reinterpret_cast<BYTE*>(moduleBase) + 0xFE1D20, (BYTE*)"\x89\x41\x58", 3);
 		}
 
-		Sleep(10);
+		Sleep(20);
 	}
 }
 
@@ -167,12 +167,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 	}
 	else if (ul_reason_for_call == DLL_PROCESS_DETACH)
 	{
-		MessageBox(
-			NULL,
-			L"Detached",
-			L"Information",
-			MB_OK
-		);
+#if _DEBUG
+		MessageBox(NULL, L"Detached", L"Information", MB_OK);
+#endif
 	}
 	return TRUE;
 }

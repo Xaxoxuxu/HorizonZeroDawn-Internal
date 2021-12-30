@@ -4,7 +4,7 @@
 void ConsoleHelper::ClearScreen() const
 {
 	constexpr COORD homeCoords = { 0, 0 };
-	static const std::string fillerString{ std::string(500, ' ') };
+	static const std::string fillerString{ std::string(5000, ' ') };
 
 	SetConsoleCursorPosition(m_hStdOut, homeCoords);
 	std::cout << fillerString;
@@ -45,7 +45,7 @@ bool ConsoleHelper::InitConsole()
 	{
 		return false;
 	}
-	
+
 	if ((m_hStdOut = GetStdHandle(STD_OUTPUT_HANDLE)) == INVALID_HANDLE_VALUE)
 	{
 		return false;
